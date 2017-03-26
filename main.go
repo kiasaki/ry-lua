@@ -6,6 +6,7 @@ import (
 
 	lua "github.com/Shopify/go-lua"
 	"github.com/Shopify/goluago"
+	glgUtil "github.com/Shopify/goluago/util"
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
 	"github.com/go-errors/errors"
@@ -41,11 +42,16 @@ func main() {
 	screen.Clear()
 	screen.ShowCursor(-1, -1)
 
+	// rt globals
+	glgUtil.DeepPush(L, os.Args)
+	L.SetGlobal("ARGS")
+
 	// rt_util
 	L.Register("quit_editor", rtQuitEditor)
 	L.Register("fatal", rtFatal)
 	L.Register("pad_left", rtPadLeft)
 	L.Register("pad_right", rtPadRight)
+	L.Register("file_read_all", rtFileReadAll)
 
 	// rt_style
 	L.Register("style", rtStyle)

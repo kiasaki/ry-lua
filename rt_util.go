@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"unicode/utf8"
 
@@ -38,5 +39,17 @@ func rtPadRight(l *lua.State) int {
 		str = str + string(padding)
 	}
 	l.PushString(str)
+	return 1
+}
+
+func rtFileReadAll(l *lua.State) int {
+	path := lua.CheckString(l, 1)
+	contents, err := ioutil.ReadFile(path)
+	if err != nil {
+		l.PushString("Error reading file \"" + path + "\"")
+		l.Error()
+		panic("unreachable")
+	}
+	l.PushString(string(contents))
 	return 1
 }

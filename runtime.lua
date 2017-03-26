@@ -1,10 +1,13 @@
 -- {{{ Globals
+json = require("goluago/encoding/json")
+strings = require("goluago/strings")
+
 settings = {}
 buffers = {}
 keymaps = {}
 root_window = nil
 current_window = nil
-message = "mess"
+message = ""
 message_type = "info"
 
 id_counter = 0
@@ -12,11 +15,19 @@ function next_id()
   id_counter = id_counter + 1
   return id_counter
 end
+
+function debug_value(value)
+  screen_quit()
+  print(json.marshal(value))
+  os.exit(1)
+end
 -- }}}
 
 -- {{{ Color schemes
 styles = {
   line_number = style("yellow");
+  status_line = style("black,white");
+  cursor = style("black,white");
   identifier = style("");
   message_info = style("");
   message_warning = style("brightyellow");
@@ -65,6 +76,16 @@ function buf_new(name, path)
     settings = {};
   }
 end
+
+function buffer_load(path)
+  local path_parts = strings.split(path, "/")
+  local b = buf_new(path_parts[#path_parts], path)
+
+  b.lines = strings.split(file_read_all(path), "\n")
+
+  table.insert(buffers, b)
+  return b.id
+end
 -- }}}
 
 -- {{{ Display
@@ -75,10 +96,27 @@ function display_window_leaf(win, x, y, w, h)
 
   local gutter_w = #tostring(#b.lines)+1
 
+  -- contents
   for line = win.scroll_line, #b.lines, 1 do
-    screen_write(sln, x, y+line-1, pad_left(tostring(line), gutter_w, " "))
+    screen_write(sln, x, y+line-1, pad_left(tostring(line), gutter_w-1, " "))
     screen_write(s, x+gutter_w, y+line-1, b.lines[line])
+
+    -- write cursor
+    if line == b.y then
+      local sc = style_for("cursor")
+      local ch = string.sub(b.lines[line], b.x, b.x)
+      screen_write(sc, x+gutter_w+b.x-1, y+line-1, ch)
+    end
+
+    if line >= h-1 then -- (-1) for status line
+      break
+    end
   end
+
+  -- status line
+  local ssl = style_for("status_line")
+  local text = " "..b.name.." "..b.x..":"..b.y.."/"..#b.lines
+  screen_write(ssl, x, y+h-1, pad_right(text, w, " "))
 end
 
 function display_window(win, x, y, w, h)
@@ -106,9 +144,17 @@ end
 
 -- {{{ Main loop
 function main()
-  local scratch_buffer = buf_new("*scratch*")
-  table.insert(buffers, scratch_buffer)
-  root_window = win_new(win_type_leaf, scratch_buffer)
+  -- Load files in ARGS
+  for i = 2, #ARGS, 1 do
+    buffer_load(ARGS[i])
+  end
+  if #buffers == 0 then
+    local scratch_buffer = buf_new("*scratch*")
+    table.insert(buffers, scratch_buffer)
+  end
+
+  -- Show first buffer in root window
+  root_window = win_new(win_type_leaf, buffers[1])
   current_window = root_window
 
   local next_key = screen_next_key()
