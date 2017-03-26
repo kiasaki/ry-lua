@@ -147,6 +147,10 @@ func (k *Key) AppendKeyStroke(ks *KeyStroke) {
 	k.keys = append(k.keys, ks)
 }
 
+func (k *Key) AppendKey(k2 *Key) {
+	k.keys = append(k.keys, k2.keys...)
+}
+
 func (k1 *Key) Matches(k2 *Key) bool {
 	if len(k1.keys) != len(k2.keys) {
 		return false

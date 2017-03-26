@@ -30,6 +30,11 @@ func rtScreenSize(l *lua.State) int {
 	return 2
 }
 
+func rtScreenQuit(l *lua.State) int {
+	screen.Fini()
+	return 0
+}
+
 func rtScreenNextKey(l *lua.State) int {
 	ev := <-screenEvents
 	switch ev := ev.(type) {
@@ -44,6 +49,13 @@ func rtScreenNextKey(l *lua.State) int {
 		l.PushNil()
 	}
 	return 1
+}
+
+func pushKeyFromEvent(l *lua.State, ev *tcell.EventKey) {
+	ks := NewKeyStrokeFromKeyEvent(ev)
+	k := NewKey("")
+	k.AppendKeyStroke(ks)
+	l.PushUserData(k)
 }
 
 func rtScreenWrite(l *lua.State) int {

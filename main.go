@@ -55,8 +55,17 @@ func main() {
 	L.Register("screen_show", rtScreenShow)
 	L.Register("screen_sync", rtScreenSync)
 	L.Register("screen_clear", rtScreenClear)
-	L.Register("screen_size", rtScreenClear)
+	L.Register("screen_size", rtScreenSize)
+	L.Register("screen_quit", rtScreenQuit)
 	L.Register("screen_next_key", rtScreenNextKey)
+
+	// rt_key
+	L.Register("key", rtKey)
+	L.Register("key_str", rtKeyStr)
+	L.Register("key_len", rtKeyLen)
+	L.Register("key_append", rtKeyAppend)
+	L.Register("key_matches", rtKeyMatches)
+	L.Register("key_matches_part", rtKeyMatchesPart)
 
 	defer handlePanics()
 
