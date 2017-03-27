@@ -25,6 +25,14 @@ function debug_value(value)
   end
   os.exit(1)
 end
+
+function chain(a, b, c)
+  return function(...)
+    if a then a(...) end
+    if b then b(...) end
+    if c then c(...) end
+  end
+end
 -- }}}
 
 -- {{{ Color schemes
@@ -131,7 +139,7 @@ function buffer_move_line_start(win)
 end
 function buffer_move_line_end(win)
   local b = win.buffer
-  buffer_move_to(win, #b.lines[b.y]+1, win.buffer.y)
+  buffer_move_to(win, #b.lines[b.y]+1, b.y)
 end
 function buffer_move_jump_up(win)
   buffer_move(win, 0, -15)
@@ -139,8 +147,51 @@ end
 function buffer_move_jump_down(win)
   buffer_move(win, 0, 15)
 end
+
 function buffer_center(win)
   win.buffer.frame_centered = true
+end
+
+function _buffer_insert(win, text)
+  local b = win.buffer
+  local line = b.lines[b.y]
+  b.lines[b.y] = string.sub(line, 0, b.x-1)..text..string.sub(line, b.x)
+  buffer_move(win, #text, 0)
+end
+function buffer_insert(win, k)
+  local text = key_str(k)
+  _buffer_insert(win, text)
+end
+function buffer_insert_tab(win)
+  _buffer_insert(win, "    ")
+end
+function buffer_insert_space(win)
+  _buffer_insert(win, " ")
+end
+function buffer_insert_newline(win)
+  table.insert(win.buffer.lines, win.buffer.y, "")
+end
+function buffer_delete_char(win)
+  local b = win.buffer
+  local line = b.lines[b.y]
+  if b.x > 1 then
+    b.lines[b.y] = string.sub(line, 0, b.x-1)..string.sub(line, b.x+1)
+    buffer_move(win, 0, 0)
+  elseif b.y > 1 then
+    local prev_line_len = #b.lines[b.y-1]
+    b.lines[b.y-1] = b.lines[b.y-1]..b.lines[b.y]
+    table.remove(b.lines, b.y)
+    buffer_move_to(win, prev_line_len+1, b.y-1)
+  elseif b.x == 1 then
+    b.lines[b.y] = string.sub(line, 0, b.x-1)..string.sub(line, b.x+1)
+    buffer_move(win, 0, 0)
+  else
+    -- we are at beginning or line, first line, can't delete anything
+  end
+end
+function buffer_delete_line(win)
+  table.remove(win.buffer.lines, win.buffer.y)
+  buffer_move(win, 0, 0)
 end
 -- }}}
 
@@ -235,8 +286,22 @@ function bind(keymap_name, k, func)
   keymaps[keymap_name].bindings[k] = func
 end
 
-keymaps.normal = keymap_new("normal")
+function enter_normal_mode(win)
+  if win.buffer.major_mode == "insert" then
+    buffer_move_left(win)
+  end
+  win.buffer.major_mode = "normal"
+end
+function enter_insert_mode(win)
+  win.buffer.major_mode = "insert"
+end
+function enter_command_mode(win)
+  win.buffer.major_mode = "command"
+end
 
+catchall_key = key("c a t c h a l l")
+
+keymaps.normal = keymap_new("normal")
 bind("normal", key("h"), buffer_move_left)
 bind("normal", key("j"), buffer_move_down)
 bind("normal", key("k"), buffer_move_up)
@@ -248,8 +313,23 @@ bind("normal", key("$"), buffer_move_line_end)
 bind("normal", key("C-u"), buffer_move_jump_up)
 bind("normal", key("C-d"), buffer_move_jump_down)
 bind("normal", key("z z"), buffer_center)
+bind("normal", key("x"), buffer_delete_char)
+bind("normal", key("d d"), buffer_delete_line)
+bind("normal", key("i"), enter_insert_mode)
+bind("normal", key(":"), enter_command_mode)
+bind("normal", key("a"), chain(buffer_move_right, enter_insert_mode))
+bind("normal", key("A"), chain(buffer_move_line_end, enter_insert_mode))
+bind("normal", key("o"), chain(
+  buffer_move_line_end, buffer_insert_newline, enter_insert_mode))
 
 keymaps.insert = keymap_new("insert")
+bind("insert", key("ESC"), enter_normal_mode)
+bind("insert", key("RET"), buffer_insert_newline)
+bind("insert", key("SPC"), buffer_insert_space)
+bind("insert", key("TAB"), buffer_insert_tab)
+bind("insert", key("BAK2"), chain(buffer_move_left, buffer_delete_char))
+bind("insert", key("DEL"), buffer_delete_char)
+bind("insert", catchall_key, buffer_insert)
 
 keymaps.command = keymap_new("command")
 -- }}}
@@ -276,16 +356,24 @@ function main()
       keys_entered = key_append(keys_entered, next_key)
       message = key_str(keys_entered)
 
-      --ls = current_window.buffer.lines
-      --ls[1] = ls[1]..key_str(next_key)
-
       local current_keymap = keymaps[current_window.buffer.major_mode]
+      local catchall_handler
+      local key_used = false
       for k,v in pairs(current_keymap.bindings) do
         if key_matches_part(keys_entered, k) then
+          v(current_window, k)
           keys_entered = key("")
-          v(current_window)
+          key_used = true
           break
         end
+        if key_matches(k, catchall_key) then
+          catchall_handler = v
+        end
+      end
+
+      if not key_used and catchall_handler then
+        catchall_handler(current_window, keys_entered)
+        keys_entered = key("")
       end
 
     end
