@@ -31,7 +31,7 @@ func rtScreenSize(l *lua.State) int {
 }
 
 func rtScreenQuit(l *lua.State) int {
-	screen.Fini()
+	closeScreen()
 	return 0
 }
 

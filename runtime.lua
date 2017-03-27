@@ -18,7 +18,11 @@ end
 
 function debug_value(value)
   screen_quit()
-  print(json.marshal(value))
+  if type(value) == "table" then
+    print(json.marshal(value))
+  else
+    print(value)
+  end
   os.exit(1)
 end
 -- }}}
@@ -68,6 +72,8 @@ function buf_new(name, path)
     name = name;
     path = path;
     modified = false;
+    major_mode = "normal";
+    minor_modes = {};
 
     lines = {""};
     x = 1;
@@ -82,36 +88,91 @@ function buffer_load(path)
   local b = buf_new(path_parts[#path_parts], path)
 
   b.lines = strings.split(file_read_all(path), "\n")
+  if b.lines[#b.lines] == "" then
+    table.remove(b.lines, #b.lines)
+  end
 
   table.insert(buffers, b)
   return b.id
+end
+
+function buffer_move_to(win, x, y)
+  local b = win.buffer
+  b.y = math.max(1, math.min(y, #b.lines)) -- y first
+  b.x = math.max(1, math.min(x, #b.lines[b.y]+1))
+end
+
+function buffer_move(win, xmov, ymov)
+  local b = win.buffer
+  buffer_move_to(win, win.buffer.x+xmov, win.buffer.y+ymov)
+end
+
+function buffer_move_left(win)
+  buffer_move(win, -1, 0)
+end
+function buffer_move_right(win)
+  buffer_move(win, 1, 0)
+end
+function buffer_move_up(win)
+  buffer_move(win, 0, -1)
+end
+function buffer_move_down(win)
+  buffer_move(win, 0, 1)
+end
+
+function buffer_move_start(win)
+  buffer_move_to(win, 0, 0)
+end
+function buffer_move_end(win)
+  buffer_move_to(win, 0, #win.buffer.lines)
+end
+function buffer_move_line_start(win)
+  buffer_move_to(win, 0, win.buffer.y)
+end
+function buffer_move_line_end(win)
+  local b = win.buffer
+  buffer_move_to(win, #b.lines[b.y]+1, win.buffer.y)
+end
+function buffer_move_jump_up(win)
+  buffer_move(win, 0, -15)
+end
+function buffer_move_jump_down(win)
+  buffer_move(win, 0, 15)
+end
+function buffer_center(win)
+  win.buffer.frame_centered = true
 end
 -- }}}
 
 -- {{{ Display
 function display_window_leaf(win, x, y, w, h)
+  if win == current_window then
+    frame(win, w, h)
+  end
+
   local b = win.buffer
   local s = style_for("identifier")
   local sln = style_for("line_number")
 
   local gutter_w = #tostring(#b.lines)+1
+  local screen_y = y
 
   -- contents
   for line = win.scroll_line, #b.lines, 1 do
-    screen_write(sln, x, y+line-1, pad_left(tostring(line), gutter_w-1, " "))
-    screen_write(s, x+gutter_w, y+line-1, b.lines[line])
+    screen_write(sln, x, screen_y, pad_left(tostring(line), gutter_w-1, " "))
+    screen_write(s, x+gutter_w, screen_y, b.lines[line])
 
-    -- write cursor
-    if line == b.y then
-      local sc = style_for("cursor")
-      local ch = string.sub(b.lines[line], b.x, b.x)
-      screen_write(sc, x+gutter_w+b.x-1, y+line-1, ch)
-    end
-
-    if line >= h-1 then -- (-1) for status line
+    if screen_y >= h-1 then -- (-1) for status line
       break
     end
+
+    screen_y = screen_y + 1
   end
+
+  -- write cursor
+  local sc = style_for("cursor")
+  local ch = string.sub(b.lines[b.y].." ", b.x, b.x)
+  screen_write(sc, x+gutter_w+b.x-1, y+b.y-win.scroll_line, ch)
 
   -- status line
   local ssl = style_for("status_line")
@@ -129,17 +190,68 @@ end
 
 function display_bottom_bar(y, width)
   local s = style_for("message_"..message_type)
-  screen_write(s, 0, y, message)
+  screen_write(s, 0, y, " "..message)
 end
 
 function display()
   local width, height = screen_size()
 
+  screen_clear()
   display_window(root_window, 0, 0, width, height-1)
   display_bottom_bar(height-1, width)
-
   screen_show()
 end
+
+-- scroll window if needed to still show cursor
+function frame(win, width, height)
+  local b = win.buffer
+
+  -- After "z z" was pressed
+  if b.frame_centered then
+    b.frame_centered = false
+    win.scroll_line = math.max(b.y - math.floor((height-1)/2), 1)
+    return
+  end
+
+  -- to low
+  -- (height-1) as height includes status bar
+  -- (scroll_line-1) as scroll_line is 1 based
+  if b.y > height-1 + win.scroll_line-1 then
+    win.scroll_line = math.max(b.y - height-1 + 2, 0) + 1
+  end
+  -- to high
+  if b.y < win.scroll_line then
+    win.scroll_line = b.y
+  end
+end
+-- }}}
+
+-- {{{ Keymap
+function keymap_new(name)
+  return { name = name; bindings = {}; }
+end
+
+function bind(keymap_name, k, func)
+  keymaps[keymap_name].bindings[k] = func
+end
+
+keymaps.normal = keymap_new("normal")
+
+bind("normal", key("h"), buffer_move_left)
+bind("normal", key("j"), buffer_move_down)
+bind("normal", key("k"), buffer_move_up)
+bind("normal", key("l"), buffer_move_right)
+bind("normal", key("g g"), buffer_move_start)
+bind("normal", key("G"), buffer_move_end)
+bind("normal", key("0"), buffer_move_line_start)
+bind("normal", key("$"), buffer_move_line_end)
+bind("normal", key("C-u"), buffer_move_jump_up)
+bind("normal", key("C-d"), buffer_move_jump_down)
+bind("normal", key("z z"), buffer_center)
+
+keymaps.insert = keymap_new("insert")
+
+keymaps.command = keymap_new("command")
 -- }}}
 
 -- {{{ Main loop
@@ -156,13 +268,28 @@ function main()
   -- Show first buffer in root window
   root_window = win_new(win_type_leaf, buffers[1])
   current_window = root_window
+  keys_entered = key("")
 
   local next_key = screen_next_key()
   while true do
     if next_key then
-      ls = current_window.buffer.lines
-      ls[1] = ls[1]..key_str(next_key)
+      keys_entered = key_append(keys_entered, next_key)
+      message = key_str(keys_entered)
+
+      --ls = current_window.buffer.lines
+      --ls[1] = ls[1]..key_str(next_key)
+
+      local current_keymap = keymaps[current_window.buffer.major_mode]
+      for k,v in pairs(current_keymap.bindings) do
+        if key_matches_part(keys_entered, k) then
+          keys_entered = key("")
+          v(current_window)
+          break
+        end
+      end
+
     end
+
     display()
     next_key = screen_next_key()
   end

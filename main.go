@@ -17,6 +17,7 @@ var (
 	screen       tcell.Screen
 	tabWidth     int = 2
 	screenEvents chan (tcell.Event)
+	screenClosed bool = false
 )
 
 func main() {
@@ -86,7 +87,14 @@ func main() {
 		fatal(err)
 	}
 
-	screen.Fini()
+	closeScreen()
+}
+
+func closeScreen() {
+	if !screenClosed {
+		screenClosed = true
+		screen.Fini()
+	}
 }
 
 func handlePanics() {
@@ -104,7 +112,7 @@ func handlePanics() {
 }
 
 func fatal(err error) {
-	screen.Fini()
+	closeScreen()
 	fmt.Fprintf(os.Stderr, "%v\n", "FATAL")
 	fmt.Fprintf(os.Stderr, "%v\n", err)
 	fmt.Print(errors.Wrap(err, 2).ErrorStack())

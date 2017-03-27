@@ -22,7 +22,7 @@ func rtKeyLen(l *lua.State) int {
 
 func rtKeyAppend(l *lua.State) int {
 	key := l.ToValue(1).(*Key)
-	key2 := l.ToValue(1).(*Key)
+	key2 := l.ToValue(2).(*Key)
 	key.AppendKey(key2)
 	l.PushUserData(key)
 	return 1
@@ -30,14 +30,14 @@ func rtKeyAppend(l *lua.State) int {
 
 func rtKeyMatches(l *lua.State) int {
 	key := l.ToValue(1).(*Key)
-	key2 := l.ToValue(1).(*Key)
+	key2 := l.ToValue(2).(*Key)
 	l.PushBoolean(key.Matches(key2))
 	return 1
 }
 
 func rtKeyMatchesPart(l *lua.State) int {
 	key := l.ToValue(1).(*Key)
-	key2 := l.ToValue(1).(*Key)
+	key2 := l.ToValue(2).(*Key)
 	l.PushBoolean(key.MatchesPart(key2))
 	return 1
 }
