@@ -52,12 +52,13 @@ TODO
 - <kbd>:</kbd> `enter_command_mode`
 - <kbd>a</kbd> `move_right, enter_insert_mode`
 - <kbd>A</kbd> `move_line_end, enter_insert_mode`
-- <kbd>o</kbd> `move_line_end, insert_newline, enter_insert_mode`
+- <kbd>o</kbd> `insert_newline_down, enter_insert_mode`
+- <kbd>O</kbd> `insert_newline_up, enter_insert_mode`
 
 **insert mode**
 
 - <kbd>ESC</kbd> `enter_normal_mode`
-- <kbd>RET</kbd> `insert_newline`
+- <kbd>RET</kbd> `insert_return`
 - <kbd>SPC</kbd> `insert_space`
 - <kbd>TAB</kbd> `insert_tab`
 - <kbd>BAK2</kbd> `move_left, delete_char`

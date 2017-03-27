@@ -168,8 +168,20 @@ end
 function buffer_insert_space(win)
   _buffer_insert(win, " ")
 end
-function buffer_insert_newline(win)
+function buffer_insert_return(win)
+  local b = win.buffer
+  local line = b.lines[b.y]
+  b.lines[b.y] = string.sub(line, 0, b.x-1)
+  table.insert(b.lines, win.buffer.y+1, string.sub(line, b.x))
+  buffer_move_to(win, 0, b.y+1)
+end
+function buffer_insert_newline_up(win)
   table.insert(win.buffer.lines, win.buffer.y, "")
+  buffer_move(win, 0, 0)
+end
+function buffer_insert_newline_down(win)
+  table.insert(win.buffer.lines, win.buffer.y+1, "")
+  buffer_move(win, 0, 1)
 end
 function buffer_delete_char(win)
   local b = win.buffer
@@ -319,12 +331,12 @@ bind("normal", key("i"), enter_insert_mode)
 bind("normal", key(":"), enter_command_mode)
 bind("normal", key("a"), chain(buffer_move_right, enter_insert_mode))
 bind("normal", key("A"), chain(buffer_move_line_end, enter_insert_mode))
-bind("normal", key("o"), chain(
-  buffer_move_line_end, buffer_insert_newline, enter_insert_mode))
+bind("normal", key("o"), chain(buffer_insert_newline_down, enter_insert_mode))
+bind("normal", key("O"), chain(buffer_insert_newline_up, enter_insert_mode))
 
 keymaps.insert = keymap_new("insert")
 bind("insert", key("ESC"), enter_normal_mode)
-bind("insert", key("RET"), buffer_insert_newline)
+bind("insert", key("RET"), buffer_insert_return)
 bind("insert", key("SPC"), buffer_insert_space)
 bind("insert", key("TAB"), buffer_insert_tab)
 bind("insert", key("BAK2"), chain(buffer_move_left, buffer_delete_char))
