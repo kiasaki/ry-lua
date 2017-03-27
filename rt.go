@@ -1,3 +1,8 @@
+package main
+
+// THIS FILE IS AUTOGENERATE DO NOT EDIT
+
+var runtimeCode = `
 -- {{{ Globals
 json = require("goluago/encoding/json")
 strings = require("goluago/strings")
@@ -591,3 +596,4 @@ end
 
 main()
 -- }}}
+`

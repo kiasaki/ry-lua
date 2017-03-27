@@ -1,5 +1,7 @@
 package main
 
+//go:generate make generate
+
 import (
 	"fmt"
 	"os"
@@ -53,6 +55,7 @@ func main() {
 	L.Register("pad_left", rtPadLeft)
 	L.Register("pad_right", rtPadRight)
 	L.Register("file_read_all", rtFileReadAll)
+	L.Register("file_write_all", rtFileWriteAll)
 
 	// rt_style
 	L.Register("style", rtStyle)
@@ -83,7 +86,7 @@ func main() {
 		}
 	}()
 
-	if err = lua.DoFile(L, "runtime.lua"); err != nil {
+	if err = lua.DoString(L, runtimeCode); err != nil {
 		fatal(err)
 	}
 

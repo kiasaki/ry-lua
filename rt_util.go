@@ -53,3 +53,15 @@ func rtFileReadAll(l *lua.State) int {
 	l.PushString(string(contents))
 	return 1
 }
+
+func rtFileWriteAll(l *lua.State) int {
+	path := lua.CheckString(l, 1)
+	contents := lua.CheckString(l, 2)
+	err := ioutil.WriteFile(path, []byte(contents), 0666)
+	if err != nil {
+		l.PushString("Error writing file \"" + path + "\"")
+		l.Error()
+		panic("unreachable")
+	}
+	return 0
+}
