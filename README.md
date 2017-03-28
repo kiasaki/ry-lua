@@ -43,6 +43,12 @@ TODO
 - <kbd>G</kbd> `move_end`
 - <kbd>0</kbd> `move_line_start`
 - <kbd>$</kbd> `move_line_end`
+- <kbd>w</kbd> `move_word_start`
+- <kbd>W</kbd> `move_word_start`
+- <kbd>e</kbd> `move_word_end`
+- <kbd>E</kbd> `move_word_end`
+- <kbd>b</kbd> `move_word_start_backwards`
+- <kbd>B</kbd> `move_word_start_backwards`
 - <kbd>C-u</kbd> `move_jump_up`
 - <kbd>C-d</kbd> `move_jump_down`
 - <kbd>z z</kbd> `center`
@@ -54,6 +60,8 @@ TODO
 - <kbd>A</kbd> `move_line_end, enter_insert_mode`
 - <kbd>o</kbd> `insert_newline_down, enter_insert_mode`
 - <kbd>O</kbd> `insert_newline_up, enter_insert_mode`
+- <kbd>ESC</kbd> `clear_keys_entered`
+- <kbd>C-g</kbd> `clear_keys_entered`
 
 **insert mode**
 
@@ -63,10 +71,24 @@ TODO
 - <kbd>TAB</kbd> `insert_tab`
 - <kbd>BAK2</kbd> `move_left, delete_char`
 - <kbd>DEL</kbd> `delete_char`
+- <kbd>(any other key)</kbd> `insert`
 
 **command mode**
 
-...
+- <kbd>ESC</kbd> `exit_command_mode`
+- <kbd>C-c</kbd> `exit_command_mode`
+- <kbd>C-g</kbd> `exit_command_mode`
+- <kbd>RET</kbd> `command_execute`
+- <kbd>BAK2</kbd> `command_backspace`
+- <kbd>(any other key)</kbd> `insert`
+
+**commands**
+
+- `quit (q, close)` Closes the current buffer, if it's the last one, exits the editor
+- `quit! (q!)` Like `quit` but doesn't prevent closing unsaved files
+- `edit <path> (e, ed, open, o)` Open file at `<path>` for editing in a new buffer
+- `write <path>? (w)` Write current buffer to disk, if given a path, sets buffer's path before
+- `wq` Runs `write` followed by `quit`
 
 ## license
 
