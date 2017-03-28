@@ -2,6 +2,10 @@
 json = require("goluago/encoding/json")
 strings = require("goluago/strings")
 
+word_sep_chars = "()[]{}\"\'\\/ "
+word_sep_chars_with_punctuation = "()[]{}.\"\'\\/ _-"
+word_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+
 buffers = {}
 keymaps = {}
 settings = {}
@@ -19,6 +23,24 @@ string.join = function(arr, sep)
     ret = ret..sep..arr[i]
   end
   return ret
+end
+
+string.contains_char = function(chars, c)
+  for i = 1, #chars, 1 do
+    if c == string.sub(chars, i, i) then
+      return true
+    end
+  end
+  return false
+end
+
+string.find_char_index = function(str, chars)
+  for i = 1, #str, 1 do
+    if string.contains_char(chars, string.sub(str, i, i)) then
+      return i
+    end
+  end
+  return 0
 end
 
 id_counter = 0
@@ -196,6 +218,78 @@ function buffer_move_line_end(win)
   local b = win.buffer
   buffer_move_to(win, #b.lines[b.y]+1, b.y)
 end
+
+-- skip word separators till 1st word char
+function _buffer_move_to_word_char(win)
+  local line = string.sub(win.buffer.lines[win.buffer.y], win.buffer.x)
+  local index = string.find_char_index(line, word_chars)
+  if index ~= 0 then
+    buffer_move(win, index-1, 0)
+  end
+end
+-- skip current word till 1st word separator
+function _buffer_move_to_word_separator(win, line_extra)
+  local line = string.sub(win.buffer.lines[win.buffer.y], win.buffer.x)..(line_extra or "")
+  local index = string.find_char_index(line, word_sep_chars)
+  if index ~= 0 then
+    buffer_move(win, index-1, 0)
+  end
+end
+function _buffer_move_word_start(win, first_call)
+  local initial_x = win.buffer.x
+  _buffer_move_to_word_separator(win)
+  _buffer_move_to_word_char(win)
+  -- if we didn't move, go to next line
+  if initial_x == win.buffer.x and first_call then
+    buffer_move_to(win, 0, win.buffer.y+1)
+    _buffer_move_word_start(win, false)
+  end
+end
+function buffer_move_word_start(win)
+  _buffer_move_word_start(win, true)
+end
+function _buffer_move_word_end(win, first_call)
+  local initial_x = win.buffer.x
+  buffer_move(win, 1, 0) -- skip word last char
+  _buffer_move_to_word_char(win)
+  _buffer_move_to_word_separator(win, " ")
+  if win.buffer.x > initial_x+1 then
+    buffer_move(win, -1, 0)
+  else
+    if first_call then
+      -- if we didn't move, go to next line
+      buffer_move_to(win, 0, win.buffer.y+1)
+      _buffer_move_word_end(win, false)
+    end
+  end
+end
+function buffer_move_word_end(win)
+  _buffer_move_word_end(win, true)
+end
+function _buffer_move_word_start_backwards(win, first_call)
+  local initial_x = win.buffer.x
+
+  local line = string.reverse(string.sub(win.buffer.lines[win.buffer.y], 1, win.buffer.x-1))
+  local index = string.find_char_index(line, word_chars)
+  if index ~= 0 then
+    buffer_move(win, 0-index, 0)
+  end
+  line = string.reverse(string.sub(win.buffer.lines[win.buffer.y], 1, win.buffer.x-1)).." "
+  index = string.find_char_index(line, word_sep_chars)
+  if index ~= 0 then
+    buffer_move(win, 0-index+1, 0)
+  end
+
+  if initial_x == win.buffer.x and first_call then
+      buffer_move_up(win)
+      buffer_move_line_end(win)
+      _buffer_move_word_start_backwards(win, false)
+  end
+end
+function buffer_move_word_start_backwards(win)
+  _buffer_move_word_start_backwards(win, true)
+end
+
 function buffer_move_jump_up(win)
   buffer_move(win, 0, -15)
 end
@@ -404,7 +498,14 @@ bind("normal", key("l"), buffer_move_right)
 bind("normal", key("g g"), buffer_move_start)
 bind("normal", key("G"), buffer_move_end)
 bind("normal", key("0"), buffer_move_line_start)
+bind("normal", key("^"), buffer_move_line_start) -- should skip whitespace
 bind("normal", key("$"), buffer_move_line_end)
+bind("normal", key("w"), buffer_move_word_start)
+bind("normal", key("W"), buffer_move_word_start) -- should include punctuation
+bind("normal", key("e"), buffer_move_word_end)
+bind("normal", key("E"), buffer_move_word_end) -- should include punctuation
+bind("normal", key("b"), buffer_move_word_start_backwards)
+bind("normal", key("B"), buffer_move_word_start_backwards) -- should include punctuation
 bind("normal", key("C-u"), buffer_move_jump_up)
 bind("normal", key("C-d"), buffer_move_jump_down)
 bind("normal", key("z z"), buffer_center)
@@ -416,6 +517,8 @@ bind("normal", key("a"), chain(buffer_move_right, enter_insert_mode))
 bind("normal", key("A"), chain(buffer_move_line_end, enter_insert_mode))
 bind("normal", key("o"), chain(buffer_insert_newline_down, enter_insert_mode))
 bind("normal", key("O"), chain(buffer_insert_newline_up, enter_insert_mode))
+bind("normal", key("ESC"), function() end)
+bind("normal", key("C-g"), function() end)
 
 create_keymap("insert")
 bind("insert", key("ESC"), enter_normal_mode)
@@ -531,11 +634,14 @@ end
 
 add_command("quit", cmd_quit)
 alt_command("q", "quit")
+alt_command("close", "quit")
 add_command("quit!", cmd_force_quit)
 alt_command("q!", "quit!")
 add_command("edit", cmd_edit)
 alt_command("e", "edit")
 alt_command("ed", "edit")
+alt_command("open", "edit")
+alt_command("o", "edit")
 add_command("write", cmd_write)
 alt_command("w", "write")
 add_command("wq", chain(cmd_write, cmd_quit))
